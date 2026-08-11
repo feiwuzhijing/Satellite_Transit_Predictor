@@ -1,0 +1,8 @@
+streamlit==1.38.0
+numpy==2.5.1
+requests==2.34.2
+skyfield==1.54
+timezonefinder==8.2.5
+tkintermapview==1.30
+urllib3==2.7.0
+
