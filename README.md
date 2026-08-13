@@ -126,3 +126,45 @@ pip install -r requirements.txt
 | **预测结果表格始终为空** | 选定时间段内确实无事件，或搜索半径太小。 | 1. 尝试将“搜索模式”更改为 **“区域范围搜索”**，并调大搜索半径（如 50km 或 100km）。<br>2. 将结束时间延后 3 到 5 天 [cite: 1]。 |
 | **启动时黑框一闪而过 / 报错 `ModuleNotFoundError`** | 依赖项未安装，或未在正确的虚拟环境中运行程序。 | 请重新打开 CMD，导航到代码目录，执行 `venv\Scripts\activate` 激活环境，然后确认是否已执行 `pip install -r requirements.txt`。 |
 | **地图显示空白或无法加载** | `TkinterMapView` 请求底图超时。 | 确保网络通畅。如使用了系统代理 (VPN)，请尝试在 Windows 设置中关闭系统代理，或确保代理规则放行了 Python 进程。 |
+## 🌐 联网数据源与 API 接口说明 (Network Data Sources & APIs)
+
+本项目在运行过程中需要获取实时的卫星轨道数据、地理高程数据以及地图底图瓦片。为了保证全球用户的访问连通性（特别是在部分网络受限地区），项目内置了**多源智能降级与本地缓存兜底机制**。
+
+以下是本项目使用的所有第三方网络 API 接口列表，感谢这些开源/免费的数据提供方：
+
+### 1. 卫星轨道数据 (TLE - Two-Line Elements) 接口
+为了防止单一数据源宕机或 IP 被封锁，软件在拉取星历时会按照以下顺序或用户指定策略进行轮询尝试：
+
+*   **CelesTrak 官方主站 (首选)**
+    *   **用途:** 获取最新鲜的官方卫星星历（空间站、星链、OneWeb 等）。
+    *   **接口地址:** `https://celestrak.org/NORAD/elements/gp.php?GROUP={group}&FORMAT=tle`
+*   **CelesTrak 官方镜像 (备用)**
+    *   **用途:** 当主站 DNS 污染或无法访问时的官方镜像替代方案。
+    *   **接口地址:** `https://celestrak.com/NORAD/elements/gp.php?GROUP={group}&FORMAT=tle`
+*   **SatNOGS 开放数据库 (备用)**
+    *   **用途:** 强大的业余无线电卫星观测网络提供的开源 TLE 数据库。
+    *   **接口地址:** `https://db.satnogs.org/api/tle/?group={group}`
+*   **Ivan Stanojevic 开放 API (备用)**
+    *   **用途:** 第三方公益 TLE REST API，适合作为最终的防封锁兜底方案。
+    *   **接口地址:** `http://tle.ivanstanojevic.me/api/tle` (支持 `?search=` 和直接 ID 查询)
+
+### 2. 地理高程 (Elevation) API
+*   **Open-Meteo Elevation API**
+    *   **用途:** 当用户在地图上右键选择观测点或使用地名搜索时，系统会根据经纬度异步调用此接口，自动获取该地点的真实海拔（Altitude），以提高凌星视角的测算精度。完全免费且无需 API Key。
+    *   **接口地址:** `https://api.open-meteo.com/v1/elevation?latitude={lat}&longitude={lon}`
+
+### 3. 在线地图瓦片 (Tile Servers) 接口
+软件集成了 `tkintermapview` 组件，支持 5 种不同风格的在线地图图层切换：
+
+*   **标准路网 (OSM):** `https://a.tile.openstreetmap.org/{z}/{x}/{y}.png`
+*   **地形图 (OpenTopo):** `https://a.tile.opentopomap.org/{z}/{x}/{y}.png`
+*   **卫星影像 (Esri Satellite):** `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}`
+*   **暗夜深空 (Carto Dark):** `https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png`
+*   **极简明亮 (Carto Light):** `https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png`
+
+### 4. 天体物理历表数据 (JPL Ephemeris)
+*   **NASA / JPL `de421.bsp`**
+    *   **用途:** 由底层依赖 `Skyfield` 核心库自动下载的天文历表文件（约 16MB）。用于极高精度地计算太阳、月球、木星、土星与地球之间的相对三维位置。仅在首次运行时下载一次并缓存在本地。
+
+---
+*注：本项目不对上述 API 的服务稳定性负责。若您有更好的数据源，欢迎通过 PR 提交补充！*
